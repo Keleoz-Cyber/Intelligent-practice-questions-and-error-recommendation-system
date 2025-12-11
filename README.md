@@ -454,7 +454,7 @@ A: 可以，修改 `Recommender.cpp` 中 `computeRecommendScore()` 函数的权�
 
 ## 许可证
 
-本项目仅供学习交流使用。
+本项目采用 [MIT License](LICENSE) 开源协议。
 
 ## 联系方式
 
