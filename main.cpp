@@ -103,8 +103,8 @@ bool loadQuestionsFromFile(const string& filename) {
         string field;
         vector<string> fields;
 
-        // 用竖线 | 分隔
-        while (getline(ss, field, '|')) {
+        // 用逗号 , 分隔
+        while (getline(ss, field, ',')) {
             fields.push_back(field);
         }
 
@@ -152,7 +152,7 @@ bool loadRecordsFromFile(const string& filename) {
         stringstream ss(line);
         string field;
         vector<string> fields;
-        while (getline(ss, field, '|')) {
+        while (getline(ss, field, ',')) {
             fields.push_back(field);
         }
         if (fields.size() < 4) continue;
@@ -232,15 +232,15 @@ double computeRecommendScore(const Question& q, const QuestionStat& st, long lon
 }
 
 
-void appendRecordToFile(const Record& r, const string& filename = "data/records.txt") {
+void appendRecordToFile(const Record& r, const string& filename = "data/records.csv") {
     ofstream fout(filename, ios::app);
     if (!fout.is_open()) {
         cout << "警告：无法写入做题记录文件。\n";
         return;
     }
-    fout << r.questionId << '|'
-         << (r.correct ? 1 : 0) << '|'
-         << r.usedSeconds << '|'
+    fout << r.questionId << ','
+         << (r.correct ? 1 : 0) << ','
+         << r.usedSeconds << ','
          << r.timestamp << '\n';
 }
 
@@ -462,13 +462,13 @@ int main() {
     #endif
 
     // 从文件加载题库
-    if (!loadQuestionsFromFile("data/questions.txt")) {
+    if (!loadQuestionsFromFile("data/questions.csv")) {
         cout << "题库加载失败，程序结束。\n";
         return 0;
     }
 
     // 从文件加载历史做题记录（如果没有文件会从空开始）
-    loadRecordsFromFile("data/records.txt");
+    loadRecordsFromFile("data/records.csv");
 
     while (true) {
         showMenu();
