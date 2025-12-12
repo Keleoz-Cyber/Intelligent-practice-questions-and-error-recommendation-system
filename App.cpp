@@ -4,6 +4,7 @@
 #include "Stats.h"
 #include "Recommender.h"
 #include "KnowledgeGraph.h"
+#include "Report.h"
 #include "Utils.h"
 #include <iostream>
 #include <cstdlib>
@@ -21,7 +22,8 @@ void showMenu() {
     std::cout << "4. 做题统计查看\n";
     std::cout << "5. 模拟考试模式\n";
     std::cout << "6. 知识点复习路径推荐\n";
-    std::cout << "7. 切换用户\n";
+    std::cout << "7. 导出学习报告\n";
+    std::cout << "8. 切换用户\n";
     std::cout << "0. 退出\n";
     std::cout << "请选择：";
 }
@@ -251,6 +253,8 @@ void runMenuLoop() {
         } else if (choice == 6) {
             recommendReviewPath();
         } else if (choice == 7) {
+            exportLearningReport();
+        } else if (choice == 8) {
             switchUser();
         } else {
             std::cout << "无效选项，请重新输入。\n";

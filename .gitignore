@@ -42,3 +42,6 @@ Makefile
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Reports (optional: remove this line if you want to track reports)
+reports/
