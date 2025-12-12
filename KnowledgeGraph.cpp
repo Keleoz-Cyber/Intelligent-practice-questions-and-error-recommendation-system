@@ -1,5 +1,6 @@
 #include "KnowledgeGraph.h"
 #include "Stats.h"
+#include "Utils.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -91,6 +92,7 @@ void recommendReviewPath() {
     if (g_allKnowledgeNodes.empty()) {
         std::cout << "知识点依赖图未加载，无法提供复习路径推荐。\n";
         std::cout << "请确保 data/knowledge_graph.txt 文件存在。\n";
+        pauseForUser();
         return;
     }
 
@@ -149,6 +151,7 @@ void recommendReviewPath() {
 
     if (choice < 1 || choice > (int)items.size()) {
         std::cout << "无效的选择。\n";
+        pauseForUser();
         return;
     }
 
@@ -193,4 +196,7 @@ void recommendReviewPath() {
 
     std::cout << "\n建议：先巩固前置知识点，再学习后续内容，效果更佳！\n";
     std::cout << "====================================\n";
+
+    // 复习路径推荐结束后暂停
+    pauseForUser();
 }

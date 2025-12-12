@@ -11,11 +11,38 @@ std::vector<Record> g_records;
 std::unordered_map<int, std::vector<Record>> g_recordsByQuestion;
 std::unordered_set<int> g_wrongQuestions;
 
+// 当前用户 ID 定义
+std::string g_currentUserId;
+
+// 获取当前用户的记录文件路径
+std::string getRecordFilePath() {
+    if (g_currentUserId.empty()) {
+        return "data/records.csv"; // 默认路径
+    }
+    return "data/records_" + g_currentUserId + ".csv";
+}
+
+// 用户登录：设置当前用户 ID
+void loginUser(const std::string& userId) {
+    g_currentUserId = userId;
+    std::cout << "当前用户：" << g_currentUserId << std::endl;
+}
+
+// 清空当前用户的所有记录数据（用于切换用户）
+void clearUserRecords() {
+    g_records.clear();
+    g_recordsByQuestion.clear();
+    g_wrongQuestions.clear();
+}
+
 bool loadRecordsFromFile(const std::string& filename) {
+    // 清空旧数据
+    clearUserRecords();
+
     std::ifstream fin(filename);
     if (!fin.is_open()) {
         // 没有记录文件不算错误，可能是第一次使用
-        std::cout << "未找到做题记录文件，将从空记录开始。\n";
+        std::cout << "未找到当前用户的做题记录文件，将从空记录开始。\n";
         return true;
     }
 
@@ -124,6 +151,6 @@ void doQuestion(const Question& q) {
         g_wrongQuestions.insert(q.id);
     }
 
-    // 追加写入文件
-    appendRecordToFile(r);
+    // 追加写入文件，使用当前用户的记录路径
+    appendRecordToFile(r, getRecordFilePath());
 }

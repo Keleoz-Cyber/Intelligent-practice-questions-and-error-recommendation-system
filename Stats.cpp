@@ -1,6 +1,7 @@
 #include "Stats.h"
 #include "Record.h"
 #include "Question.h"
+#include "Utils.h"
 #include <iostream>
 
 // 全局统计信息定义
@@ -49,6 +50,7 @@ std::unordered_map<std::string, KnowledgeStat> buildKnowledgeStats() {
 void showStatistics() {
     if (g_records.empty()) {
         std::cout << "当前还没有任何做题记录。\n";
+        pauseForUser();
         return;
     }
 
@@ -90,4 +92,7 @@ void showStatistics() {
     }
 
     std::cout << "\n当前错题数： " << g_wrongQuestions.size() << " 道。\n";
+
+    // 统计显示后暂停
+    pauseForUser();
 }

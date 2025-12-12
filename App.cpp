@@ -4,6 +4,7 @@
 #include "Stats.h"
 #include "Recommender.h"
 #include "KnowledgeGraph.h"
+#include "Utils.h"
 #include <iostream>
 #include <cstdlib>
 #include <ctime>
@@ -20,6 +21,7 @@ void showMenu() {
     std::cout << "4. 做题统计查看\n";
     std::cout << "5. 模拟考试模式\n";
     std::cout << "6. 知识点复习路径推荐\n";
+    std::cout << "7. 切换用户\n";
     std::cout << "0. 退出\n";
     std::cout << "请选择：";
 }
@@ -27,6 +29,7 @@ void showMenu() {
 void randomPractice() {
     if (g_questions.empty()) {
         std::cout << "题库为空，请先导入题库。\n";
+        pauseForUser();
         return;
     }
 
@@ -35,11 +38,15 @@ void randomPractice() {
     const Question& q = g_questions[idx];
 
     doQuestion(q);
+
+    // 答题结束后暂停
+    pauseForUser();
 }
 
 void wrongBookMode() {
     if (g_wrongQuestions.empty()) {
         std::cout << "当前没有错题，先去刷题或者做几道题再来吧。\n";
+        pauseForUser();
         return;
     }
 
@@ -57,16 +64,21 @@ void wrongBookMode() {
     auto it = g_questionById.find(qid);
     if (it == g_questionById.end()) {
         std::cout << "错误：找不到错题对应的题目内容。\n";
+        pauseForUser();
         return;
     }
 
     std::cout << "【错题本练习】\n";
     doQuestion(*it->second);
+
+    // 答题结束后暂停
+    pauseForUser();
 }
 
 void examMode() {
     if (g_questions.empty()) {
         std::cout << "题库为空，无法进行考试。\n";
+        pauseForUser();
         return;
     }
 
@@ -177,10 +189,47 @@ void examMode() {
 
     std::cout << "====================================\n";
     std::cout << "考试记录已保存，可在\"做题统计查看\"中查看历史数据。\n";
+
+    // 考试结束后暂停
+    pauseForUser();
+}
+
+void switchUser() {
+    std::cout << "\n========== 切换用户 ==========\n";
+    std::cout << "请输入新的学号或用户名：";
+
+    std::string userId;
+    std::cin.ignore(); // 清除输入缓冲区
+    while (true) {
+        std::getline(std::cin, userId);
+        // 去除前后空格
+        userId.erase(0, userId.find_first_not_of(" \t\n\r"));
+        userId.erase(userId.find_last_not_of(" \t\n\r") + 1);
+
+        if (!userId.empty()) {
+            break;
+        }
+        std::cout << "用户标识不能为空，请重新输入：";
+    }
+
+    // 切换用户
+    loginUser(userId);
+
+    // 重新加载新用户的做题记录
+    loadRecordsFromFile(getRecordFilePath());
+
+    std::cout << "已成功切换到用户：" << g_currentUserId << "\n";
+    std::cout << "====================================\n";
+
+    // 切换用户后暂停
+    pauseForUser();
 }
 
 void runMenuLoop() {
     while (true) {
+        // 每次循环开始时清屏
+        clearScreen();
+
         showMenu();
         int choice;
         if (!(std::cin >> choice)) {
@@ -201,8 +250,11 @@ void runMenuLoop() {
             examMode();
         } else if (choice == 6) {
             recommendReviewPath();
+        } else if (choice == 7) {
+            switchUser();
         } else {
             std::cout << "无效选项，请重新输入。\n";
+            pauseForUser();
         }
     }
 }

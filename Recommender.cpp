@@ -1,5 +1,6 @@
 #include "Recommender.h"
 #include "Record.h"
+#include "Utils.h"
 #include <iostream>
 #include <queue>
 #include <ctime>
@@ -47,6 +48,7 @@ double computeRecommendScore(const Question& q, const QuestionStat& st, long lon
 void aiRecommendMode() {
     if (g_questions.empty()) {
         std::cout << "题库为空，无法推荐。\n";
+        pauseForUser();
         return;
     }
 
@@ -96,4 +98,7 @@ void aiRecommendMode() {
     }
 
     std::cout << "本轮 AI 推荐练习结束。\n";
+
+    // AI 推荐练习结束后暂停
+    pauseForUser();
 }

@@ -12,4 +12,5 @@ add_executable(DS_AI_Quiz
         Recommender.cpp
         KnowledgeGraph.cpp
         App.cpp
+        Utils.cpp
 )
