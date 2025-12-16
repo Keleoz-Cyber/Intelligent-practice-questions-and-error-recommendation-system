@@ -4,72 +4,173 @@ on:
   push:
     tags:
       - 'v*.*.*'  # 匹配 v1.0.0, v2.1.3 等版本标签
+      - 'v*.*'    # 匹配 v1.0 等版本标签
 
 jobs:
   build-windows:
     runs-on: windows-latest
+    permissions:
+      contents: write  # 需要写权限来创建 Release
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Setup MSVC
+      uses: ilammy/msvc-dev-cmd@v1
+
     - name: Setup CMake
       uses: lukka/get-cmake@latest
 
     - name: Configure CMake
-      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+      run: cmake -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
 
     - name: Build
-      run: cmake --build build --config Release
+      run: cmake --build build --config Release --verbose
+
+    - name: Verify Build Output
+      shell: pwsh
+      run: |
+        Write-Host "=== 检查构建输出 ==="
+        if (Test-Path "build/Release/DS_AI_Quiz.exe") {
+          Write-Host "✅ 找到可执行文件: build/Release/DS_AI_Quiz.exe"
+          Get-Item "build/Release/DS_AI_Quiz.exe" | Format-List
+        } elseif (Test-Path "build/DS_AI_Quiz.exe") {
+          Write-Host "✅ 找到可执行文件: build/DS_AI_Quiz.exe"
+          Get-Item "build/DS_AI_Quiz.exe" | Format-List
+        } else {
+          Write-Host "❌ 未找到可执行文件，列出 build 目录内容："
+          Get-ChildItem -Path "build" -Recurse -File -Filter "*.exe" | Format-Table
+          exit 1
+        }
 
     - name: Prepare Release Package
       shell: pwsh
       run: |
-        # 创建发行版目录结构
-        New-Item -ItemType Directory -Force -Path "release/DS_AI_Quiz"
-        New-Item -ItemType Directory -Force -Path "release/DS_AI_Quiz/data"
+        Write-Host "=== 准备发行版目录 ==="
 
-        # 复制可执行文件
-        Copy-Item "build/Release/DS_AI_Quiz.exe" -Destination "release/DS_AI_Quiz/"
+        # 创建发行版目录结构
+        New-Item -ItemType Directory -Force -Path "release/DS_AI_Quiz" | Out-Null
+        New-Item -ItemType Directory -Force -Path "release/DS_AI_Quiz/data" | Out-Null
+
+        # 复制可执行文件（尝试两个可能的位置）
+        if (Test-Path "build/Release/DS_AI_Quiz.exe") {
+          Copy-Item "build/Release/DS_AI_Quiz.exe" -Destination "release/DS_AI_Quiz/"
+          Write-Host "✅ 复制: build/Release/DS_AI_Quiz.exe"
+        } elseif (Test-Path "build/DS_AI_Quiz.exe") {
+          Copy-Item "build/DS_AI_Quiz.exe" -Destination "release/DS_AI_Quiz/"
+          Write-Host "✅ 复制: build/DS_AI_Quiz.exe"
+        } else {
+          Write-Host "❌ 错误: 找不到可执行文件"
+          exit 1
+        }
 
         # 复制数据文件
-        Copy-Item "data/questions.csv" -Destination "release/DS_AI_Quiz/data/"
-        Copy-Item "data/knowledge_graph.txt" -Destination "release/DS_AI_Quiz/data/"
+        if (Test-Path "data/questions.csv") {
+          Copy-Item "data/questions.csv" -Destination "release/DS_AI_Quiz/data/"
+          Write-Host "✅ 复制: data/questions.csv"
+        } else {
+          Write-Host "⚠️  警告: data/questions.csv 不存在"
+        }
 
-        # 复制 README 和 LICENSE（可选）
+        if (Test-Path "data/knowledge_graph.txt") {
+          Copy-Item "data/knowledge_graph.txt" -Destination "release/DS_AI_Quiz/data/"
+          Write-Host "✅ 复制: data/knowledge_graph.txt"
+        } else {
+          Write-Host "⚠️  警告: data/knowledge_graph.txt 不存在"
+        }
+
+        # 复制 README 和 LICENSE
         if (Test-Path "README.md") {
           Copy-Item "README.md" -Destination "release/DS_AI_Quiz/"
+          Write-Host "✅ 复制: README.md"
         }
+
         if (Test-Path "LICENSE") {
           Copy-Item "LICENSE" -Destination "release/DS_AI_Quiz/"
+          Write-Host "✅ 复制: LICENSE"
         }
+
+        Write-Host "`n=== 发行版目录结构 ==="
+        Get-ChildItem -Path "release/DS_AI_Quiz" -Recurse | Select-Object FullName
 
     - name: Create ZIP archive
       shell: pwsh
       run: |
         # 获取版本号（去掉 v 前缀）
-        $version = "${{ github.ref_name }}".TrimStart('v')
+        $refName = "${{ github.ref_name }}"
+        $version = $refName.TrimStart('v')
         $zipName = "DS_AI_Quiz-Windows-x64-v$version.zip"
 
-        # 创建 ZIP 包
-        Compress-Archive -Path "release/DS_AI_Quiz" -DestinationPath $zipName
+        Write-Host "=== 创建 ZIP 压缩包 ==="
+        Write-Host "版本号: $version"
+        Write-Host "文件名: $zipName"
+
+        # 创建 ZIP 包（打包整个 DS_AI_Quiz 文件夹）
+        Compress-Archive -Path "release/DS_AI_Quiz" -DestinationPath $zipName -Force
+
+        # 验证 ZIP 文件
+        if (Test-Path $zipName) {
+          $zipFile = Get-Item $zipName
+          Write-Host "✅ ZIP 创建成功"
+          Write-Host "   文件大小: $($zipFile.Length) 字节"
+          Write-Host "   文件路径: $($zipFile.FullName)"
+        } else {
+          Write-Host "❌ ZIP 创建失败"
+          exit 1
+        }
 
         # 输出文件名供后续步骤使用
-        echo "ZIP_NAME=$zipName" >> $env:GITHUB_ENV
+        "ZIP_NAME=$zipName" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+        "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: DS_AI_Quiz-Windows-x64
+        name: DS_AI_Quiz-Windows-x64-v${{ env.VERSION }}
         path: ${{ env.ZIP_NAME }}
+        if-no-files-found: error
 
     - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       if: startsWith(github.ref, 'refs/tags/')
       with:
         files: ${{ env.ZIP_NAME }}
         draft: false
         prerelease: false
         generate_release_notes: true
+        body: |
+          ## 数据结构智能刷题系统 ${{ github.ref_name }}
+
+          ### 📦 Windows 发行版
+
+          下载 `DS_AI_Quiz-Windows-x64-${{ github.ref_name }}.zip`，解压后即可使用。
+
+          ### 📋 使用说明
+
+          1. 解压 ZIP 文件到任意目录
+          2. 确保目录结构如下：
+             ```
+             DS_AI_Quiz/
+             ├── DS_AI_Quiz.exe
+             └── data/
+                 ├── questions.csv
+                 └── knowledge_graph.txt
+             ```
+          3. 双击 `DS_AI_Quiz.exe` 运行，或在命令行中执行
+          4. 首次运行时输入学号/用户名即可开始使用
+
+          ### ✨ 新特性
+
+          - ✅ 智能路径定位：从任意工作目录启动都能正常运行
+          - ✅ 启动自检：自动检查必要文件并给出友好提示
+          - ✅ 多用户支持：每个用户独立的做题记录
+          - ✅ AI 智能推荐：基于多维度算法推荐练习题目
+          - ✅ 知识图谱：依赖关系可视化与复习路径规划
+          - ✅ 学习报告：自动生成 Markdown 格式详细报告
+
+          ### 📖 完整文档
+
+          详见压缩包内的 `README.md` 文件。
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
