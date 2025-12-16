@@ -4,6 +4,7 @@
 #include <cstdlib>
 
 #ifdef _WIN32
+#define NOMINMAX  // 防止 Windows.h 定义 min/max 宏
 #include <windows.h>
 #else
 #include <unistd.h>
@@ -23,7 +24,8 @@ void pauseForUser(const std::string& message) {
     std::cout << "\n" << message;
 
     // 清空输入缓冲区中的残留字符（包括换行符）
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    // 使用括号避免 Windows.h 的 max 宏污染
+    std::cin.ignore((std::numeric_limits<std::streamsize>::max)(), '\n');
 
     // 等待用户按回车
     std::string dummy;

@@ -16,7 +16,14 @@
 std::string getTimeStringForFilename() {
     auto now = std::chrono::system_clock::now();
     std::time_t now_c = std::chrono::system_clock::to_time_t(now);
-    std::tm* local_time = std::localtime(&now_c);
+
+    std::tm local_time_buf;
+#ifdef _WIN32
+    localtime_s(&local_time_buf, &now_c);
+#else
+    localtime_r(&now_c, &local_time_buf);
+#endif
+    std::tm* local_time = &local_time_buf;
 
     std::ostringstream oss;
     oss << std::setfill('0')
@@ -33,7 +40,14 @@ std::string getTimeStringForFilename() {
 std::string getTimeStringForDisplay() {
     auto now = std::chrono::system_clock::now();
     std::time_t now_c = std::chrono::system_clock::to_time_t(now);
-    std::tm* local_time = std::localtime(&now_c);
+
+    std::tm local_time_buf;
+#ifdef _WIN32
+    localtime_s(&local_time_buf, &now_c);
+#else
+    localtime_r(&now_c, &local_time_buf);
+#endif
+    std::tm* local_time = &local_time_buf;
 
     std::ostringstream oss;
     oss << std::setfill('0')
