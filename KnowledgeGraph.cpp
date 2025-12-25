@@ -418,8 +418,18 @@ void recommendReviewPath() {
 
     // 【步骤 4】让用户选择目标知识点
     std::cout << "\n请输入要复习的知识点编号（1-" << items.size() << "）：";
-    int choice;
-    std::cin >> choice;
+
+    int choice = -1;
+    // 使用 getline 读取，与系统其他部分保持一致，避免残留换行符
+    std::string line;
+    std::getline(std::cin, line);
+
+    // 尝试解析输入
+    try {
+        choice = std::stoi(line);
+    } catch (...) {
+        choice = -1; // 解析失败
+    }
 
     // 输入验证：检查编号范围
     if (choice < 1 || choice > (int)items.size()) {

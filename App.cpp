@@ -19,8 +19,6 @@
 #include "Report.h"
 #include "Utils.h"
 #include <iostream>
-#include <cstdlib>
-#include <ctime>
 #include <random>
 #include <algorithm>
 
@@ -67,9 +65,9 @@ void randomPractice() {
         return;
     }
 
-    // 使用当前时间作为随机种子
-    std::srand((unsigned)std::time(nullptr));
-    int idx = std::rand() % g_questions.size();
+    // 使用全局 RNG 生成随机索引
+    std::uniform_int_distribution<size_t> dist(0, g_questions.size() - 1);
+    size_t idx = dist(globalRng());
     const Question& q = g_questions[idx];
 
     doQuestion(q);
@@ -116,10 +114,10 @@ void wrongBookMode() {
         ids.push_back(id);
     }
 
-    // 随机选择一道错题
-    std::srand((unsigned)std::time(nullptr));
-    int idx = std::rand() % ids.size();
-    int qid = ids[idx];
+    // 使用全局 RNG 随机选择一道错题
+    std::uniform_int_distribution<size_t> dist(0, ids.size() - 1);
+    size_t randomIdx = dist(globalRng());
+    int qid = ids[randomIdx];
 
     // 通过 ID 查找题目对象
     auto it = g_questionById.find(qid);
@@ -129,8 +127,16 @@ void wrongBookMode() {
         return;
     }
 
+    // 使用索引访问题目
+    size_t qIdx = it->second;
+    if (qIdx >= g_questions.size()) {
+        std::cout << "错误：题目索引异常。\n";
+        pauseForUser();
+        return;
+    }
+
     std::cout << "【错题本练习】\n";
-    doQuestion(*it->second);
+    doQuestion(g_questions[qIdx]);
 
     // 答题结束后暂停，等待用户按回车返回菜单
     pauseForUser();
@@ -183,17 +189,16 @@ void examMode() {
         return;
     }
 
-    // 步骤 1：让用户输入考试题目数量
+    // 步骤 1：让用户输入考试题目数量（使用健壮输入函数）
     std::cout << "========== 模拟考试模式 ==========\n";
     std::cout << "题库共有 " << g_questions.size() << " 道题。\n";
-    std::cout << "请输入本次考试的题目数量：";
 
     int N;
-    std::cin >> N;
-
-    // 限制范围：N 必须在 [1, 题库总数] 之间
-    if (N < 1) N = 1;
-    if (N > (int)g_questions.size()) N = (int)g_questions.size();
+    if (!readIntSafely("请输入本次考试的题目数量：", N, 1, (int)g_questions.size(), false)) {
+        std::cout << "已取消考试。\n";
+        pauseForUser();
+        return;
+    }
 
     std::cout << "本次考试共 " << N << " 道题。\n";
 
@@ -209,11 +214,8 @@ void examMode() {
         indices.push_back(i);
     }
 
-    // 使用 C++11 的 random_device 和 mt19937 进行洗牌（Fisher-Yates 算法）
-    // random_device 提供真随机种子，mt19937 是高质量伪随机数生成器
-    std::random_device rd;
-    std::mt19937 rng(rd());
-    std::shuffle(indices.begin(), indices.end(), rng);
+    // 使用全局 mt19937 进行洗牌（Fisher-Yates 算法）
+    std::shuffle(indices.begin(), indices.end(), globalRng());
 
     // 取前 N 个索引作为本次考试题目（时间复杂度 O(N)）
     std::vector<int> selectedIndices(indices.begin(), indices.begin() + N);
@@ -265,7 +267,10 @@ void examMode() {
         auto itQ = g_questionById.find(r.questionId);
         if (itQ == g_questionById.end()) continue;
 
-        const std::string& kd = itQ->second->knowledge;
+        size_t qIdx = itQ->second;
+        if (qIdx >= g_questions.size()) continue;
+
+        const std::string& kd = g_questions[qIdx].knowledge;
         examKnowledge[kd].total++;
         if (r.correct) {
             examKnowledge[kd].correct++;
@@ -337,7 +342,7 @@ void switchUser() {
     std::cout << "请输入新的学号或用户名：";
 
     std::string userId;
-    std::cin.ignore(); // 清除输入缓冲区残留的换行符，避免 getline 读到空行
+    // std::cin.ignore(); // 删除此行：因为上层菜单使用的是 readIntSafely (getline)，缓冲区已经是干净的
     while (true) {
         std::getline(std::cin, userId);
         // 去除前后空格、制表符、换行符
@@ -426,9 +431,10 @@ void runMenuLoop() {
 
         showMenu();
         int choice;
-        if (!(std::cin >> choice)) {
-            // 输入失败（如输入非数字），退出程序
-            break;
+        // 使用健壮输入函数读取菜单选项
+        if (!readIntSafely("", choice, 0, 8, false)) {
+            // 如果读取失败，继续循环
+            continue;
         }
         if (choice == 0) {
             std::cout << "再见！\n";

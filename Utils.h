@@ -12,6 +12,7 @@
 
 #include <string>
 #include <filesystem>
+#include <random>
 
 /**
  * @brief 清屏函数
@@ -130,3 +131,67 @@ std::filesystem::path getDataDir();
  * @see exportLearningReport() 导出学习报告（Report 模块）
  */
 std::filesystem::path getReportsDir();
+
+/**
+ * @brief 安全读取整数（健壮的输入处理）
+ *
+ * 【功能】
+ * 提供健壮的整数输入功能，避免 std::cin >> int 的 failbit 问题。
+ *
+ * 【处理流程】
+ * 1. 打印提示信息（prompt）
+ * 2. 使用 std::getline 读取整行输入（避免 cin fail state）
+ * 3. 使用 std::stringstream 尝试解析为整数
+ * 4. 验证输入是否为合法整数（完整解析，无多余字符）
+ * 5. 验证范围：[minVal, maxVal]
+ * 6. 输入非法时循环提示重新输入
+ *
+ * 【输入验证】
+ * - 非数字字符：提示"请输入有效的数字"
+ * - 范围外：提示"请输入 [minVal, maxVal] 范围内的数字"
+ * - 空行处理：根据 allowEmpty 参数决定是否允许
+ *
+ * @param prompt 提示信息（例如："请选择："）
+ * @param out 输出参数，存储成功读取的整数
+ * @param minVal 允许的最小值
+ * @param maxVal 允许的最大值
+ * @param allowEmpty 是否允许空输入（默认 false，空输入会提示重新输入）
+ * @return true 成功读取到合法整数
+ * @return false 用户输入空行且 allowEmpty=true（用于取消操作）
+ *
+ * @note 使用 getline + stringstream 避免 cin 进入 fail state
+ * @note 循环直到输入合法，不会因非法输入而崩溃或退出
+ *
+ * @complexity O(1) 单次输入解析
+ */
+bool readIntSafely(const std::string& prompt, int& out, int minVal, int maxVal, bool allowEmpty = false);
+
+/**
+ * @brief 获取全局随机数生成器（线程安全）
+ *
+ * 【功能】
+ * 提供一个全局唯一的 std::mt19937 随机数生成器，用于所有随机数需求。
+ *
+ * 【初始化策略】
+ * - 使用静态局部变量（函数内 static）实现单例模式
+ * - 首次调用时使用 std::random_device 初始化种子（高质量随机种子）
+ * - 线程安全（C++11 保证静态局部变量初始化的线程安全性）
+ *
+ * 【设计目的】
+ * - 统一随机数风格：避免混用 rand()/mt19937/random_device
+ * - 避免重复播种：不再每次调用 srand(time(nullptr))
+ * - 提高随机质量：mt19937 优于传统 rand()
+ *
+ * @return std::mt19937& 全局随机数生成器的引用
+ *
+ * @note 返回引用避免拷贝（mt19937 状态较大）
+ * @note 所有模块（App/Record/Recommender）应使用此函数获取 RNG
+ * @note 配合 std::uniform_int_distribution 使用
+ *
+ * @example
+ * std::uniform_int_distribution<int> dist(0, 9);
+ * int randomNum = dist(globalRng());
+ *
+ * @complexity O(1) 首次调用初始化，后续直接返回引用
+ */
+std::mt19937& globalRng();

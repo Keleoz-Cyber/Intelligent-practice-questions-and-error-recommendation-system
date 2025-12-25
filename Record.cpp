@@ -469,19 +469,66 @@ void doQuestion(const Question& q) {
         std::cout << i << ". " << q.options[i] << std::endl;
     }
 
-    std::cout << "请输入你的答案编号：";
-
-    // ======== 步骤 2-3：计时 + 等待输入 ========
+    // ======== 步骤 2-3：计时 + 等待输入（使用健壮输入函数）========
     auto start = steady_clock::now();  // 记录开始时间（单调时钟）
 
-    int userAns;
-    std::cin >> userAns;  // 阻塞等待用户输入（回车键结束）
+    int userAns = -1;  // 初始化为非法值
+    std::string line;
+    bool inputValid = false;
+
+    // 循环读取，直到获取有效输入
+    while (!inputValid) {
+        std::cout << "请输入你的答案编号：";
+        
+        // 【关键修复】检查 getline 是否成功，防止 EOF/错误状态导致无限循环
+        if (!std::getline(std::cin, line)) {
+            // 输入流已关闭（EOF）或出错
+            if (std::cin.eof()) {
+                std::cerr << "\n检测到输入结束（EOF），本题判错并退出。\n";
+            } else {
+                std::cerr << "\n输入流异常，本题判错。\n";
+                std::cin.clear();  // 尝试恢复输入流状态
+            }
+            // 强制跳出循环，使用默认错误答案
+            userAns = -1;
+            break;
+        }
+
+        // 【安全的空白字符去除】先检查是否为空或全空白
+        size_t startPos = line.find_first_not_of(" \t\n\r");
+        if (startPos == std::string::npos) {
+            // 空行或全空白字符
+            std::cout << "输入为空，请重新输入。\n";
+            continue;
+        }
+        
+        // 去除前导空白
+        line.erase(0, startPos);
+        
+        // 去除尾部空白（此时 line 至少有一个非空白字符，所以 find_last_not_of 不会返回 npos）
+        size_t endPos = line.find_last_not_of(" \t\n\r");
+        if (endPos != std::string::npos) {
+            line.erase(endPos + 1);
+        }
+
+        // 尝试解析整数
+        std::stringstream ss(line);
+        if (ss >> userAns && ss.eof()) {
+            // 解析成功且无多余字符
+            if (userAns >= 0 && userAns < (int)q.options.size()) {
+                inputValid = true;
+            } else {
+                std::cout << "选项超出范围（请输入 0-" << (q.options.size() - 1) << "），请重新输入。\n";
+            }
+        } else {
+            std::cout << "输入无效（请输入数字），请重新输入。\n";
+        }
+    }
 
     auto end = steady_clock::now();  // 记录结束时间
 
     // 计算用时（秒）
     int usedSeconds = (int)duration_cast<seconds>(end - start).count();
-
     // 边界处理：用时为 0 时设为 1 秒（避免统计异常、除零错误）
     if (usedSeconds <= 0) usedSeconds = 1;
 

@@ -346,16 +346,19 @@ void aiRecommendMode() {
     for (size_t i = 0; i < selected.size(); ++i) {
         int qid = selected[i];
 
-        // 从全局 map 中查找题目对象指针
+        // 从全局 map 中查找题目索引
         auto itQ = g_questionById.find(qid);
         if (itQ == g_questionById.end()) continue; // 异常情况：题目不存在，跳过
+
+        size_t qIdx = itQ->second;
+        if (qIdx >= g_questions.size()) continue; // 索引异常，跳过
 
         // 打印题目序号分隔线
         std::cout << "-----------------------------\n";
         std::cout << "第 " << (i + 1) << " 道推荐题：\n";
 
         // 调用做题函数（显示题目、接收答案、判断正误、记录结果）
-        doQuestion(*itQ->second);
+        doQuestion(g_questions[qIdx]);
 
         std::cout << "\n";
     }

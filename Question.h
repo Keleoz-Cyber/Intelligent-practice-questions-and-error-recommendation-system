@@ -64,11 +64,13 @@ extern std::vector<Question> g_questions;
 /**
  * @brief 全局题号索引（快速查询）
  *
- * 题号 -> Question 指针的哈希映射，提供 O(1) 查题功能。
- * 指针指向 g_questions 中的对象，无需额外存储空间。
+ * 题号 -> g_questions 索引的哈希映射，提供 O(1) 查题功能。
+ * 使用索引而非指针，避免 vector 扩容导致的指针失效问题。
  * 适用场景：根据做题记录的 questionId 快速获取题目详情。
+ *
+ * @warning 索引基于 g_questions 的当前状态，题库加载后不应修改 g_questions（push_back/erase）
  */
-extern std::unordered_map<int, const Question*> g_questionById;
+extern std::unordered_map<int, size_t> g_questionById;
 
 /**
  * @brief 从 CSV 文件加载题库

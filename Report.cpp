@@ -234,7 +234,10 @@ void exportLearningReport() {
             auto itQ = g_questionById.find(r.questionId);
             if (itQ == g_questionById.end()) continue;  // 题目不存在，跳过
 
-            const std::string& knowledge = itQ->second->knowledge;
+            size_t qIdx = itQ->second;
+            if (qIdx >= g_questions.size()) continue;  // 索引异常，跳过
+
+            const std::string& knowledge = g_questions[qIdx].knowledge;
             knowledgeStats[knowledge].first++;  // 该知识点总作答次数 +1
             if (r.correct) {
                 knowledgeStats[knowledge].second++;  // 该知识点正确作答次数 +1
@@ -273,9 +276,12 @@ void exportLearningReport() {
                 auto itQ = g_questionById.find(qid);
                 if (itQ == g_questionById.end()) continue;  // 题目不存在，跳过
 
-                const Question* q = itQ->second;
-                wrongByKnowledge[q->knowledge]++;     // 该知识点错题数 +1
-                wrongByDifficulty[q->difficulty]++;   // 该难度错题数 +1
+                size_t qIdx = itQ->second;
+                if (qIdx >= g_questions.size()) continue;  // 索引异常，跳过
+
+                const Question& q = g_questions[qIdx];
+                wrongByKnowledge[q.knowledge]++;     // 该知识点错题数 +1
+                wrongByDifficulty[q.difficulty]++;   // 该难度错题数 +1
             }
 
             // 生成按知识点统计错题数表格

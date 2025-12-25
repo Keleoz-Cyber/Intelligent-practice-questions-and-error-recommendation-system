@@ -10,6 +10,7 @@
 
 #include "Utils.h"
 #include <iostream>
+#include <sstream>
 #include <limits>
 #include <cstdlib>
 
@@ -91,9 +92,9 @@ void clearScreen() {
 void pauseForUser(const std::string& message) {
     std::cout << "\n" << message;
 
-    // 清空输入缓冲区中的残留字符（包括换行符）
-    // 使用括号避免 Windows.h 的 max 宏污染（虽然已定义 NOMINMAX，但保险起见）
-    std::cin.ignore((std::numeric_limits<std::streamsize>::max)(), '\n');
+    // 移除 cin.ignore()，因为项目已统一使用 getline 读取输入
+    // 缓冲区中不会残留换行符，无需清空
+    // std::cin.ignore((std::numeric_limits<std::streamsize>::max)(), '\n');
 
     // 等待用户按回车键，读取的内容无需使用，直接丢弃
     std::string dummy;
@@ -240,4 +241,93 @@ std::filesystem::path getDataDir() {
  */
 std::filesystem::path getReportsDir() {
     return getExeDir() / "reports";
+}
+
+/**
+ * @brief 安全读取整数实现
+ *
+ * 【核心算法】
+ * 1. 使用 std::getline 读取整行（避免 cin >> 的 failbit）
+ * 2. 使用 std::stringstream 解析整数
+ * 3. 验证完整解析（ss >> out 成功且 ss.eof()）
+ * 4. 验证范围 [minVal, maxVal]
+ * 5. 失败时循环提示重新输入
+ *
+ * 【为什么用 getline + stringstream】
+ * - cin >> int 在输入非数字时会进入 fail state
+ * - fail state 导致后续所有 cin 操作失败（死循环/崩溃）
+ * - getline 读取整行，即使输入非法也不影响 cin 状态
+ * - stringstream 解析失败仅影响局部变量，不污染全局状态
+ *
+ * 【完整解析验证】
+ * - ss >> out 成功：至少解析了一个整数
+ * - ss.eof() 为真：字符串已完全解析，无多余字符
+ * - 例如："123abc" 会被拒绝（123 后有多余字符 abc）
+ *
+ * @complexity O(N)，N 为输入字符串长度（通常很小）
+ */
+bool readIntSafely(const std::string& prompt, int& out, int minVal, int maxVal, bool allowEmpty) {
+    std::string line;
+    while (true) {
+        std::cout << prompt;
+        std::getline(std::cin, line);
+
+        // 去除前后空白字符
+        line.erase(0, line.find_first_not_of(" \t\n\r"));
+        line.erase(line.find_last_not_of(" \t\n\r") + 1);
+
+        // 允许空输入且输入为空，返回 false
+        if (allowEmpty && line.empty()) {
+            return false;
+        }
+
+        // 空输入且不允许，提示重新输入
+        if (line.empty()) {
+            std::cout << "输入不能为空，请重新输入。\n";
+            continue;
+        }
+
+        // 尝试解析整数
+        std::stringstream ss(line);
+        int value;
+        if (ss >> value && ss.eof()) {
+            // 解析成功且无多余字符
+            if (value >= minVal && value <= maxVal) {
+                out = value;
+                return true;
+            } else {
+                std::cout << "输入超出范围，请输入 [" << minVal << ", " << maxVal << "] 之间的数字。\n";
+            }
+        } else {
+            // 解析失败或有多余字符
+            std::cout << "输入无效，请输入有效的数字。\n";
+        }
+    }
+}
+
+/**
+ * @brief 全局随机数生成器实现
+ *
+ * 【单例模式】
+ * 使用函数内静态变量实现：
+ * - 首次调用时初始化（C++11 保证线程安全）
+ * - 后续调用直接返回引用（无额外开销）
+ *
+ * 【随机种子来源】
+ * - 优先使用 std::random_device（真随机数，来自操作系统）
+ * - Windows：CryptGenRandom API
+ * - Linux：/dev/urandom
+ * - 若 random_device 不可用，编译器会使用确定性种子（极少见）
+ *
+ * 【mt19937 特性】
+ * - Mersenne Twister 算法（周期 2^19937-1）
+ * - 高质量伪随机数（通过多项统计测试）
+ * - 状态大小 2.5KB（相比 rand() 的几字节）
+ *
+ * @complexity O(1) 首次初始化 O(K)，K 为 random_device 初始化开销
+ */
+std::mt19937& globalRng() {
+    static std::random_device rd;
+    static std::mt19937 rng(rd());
+    return rng;
 }

@@ -23,7 +23,7 @@
 
 // 全局题库容器定义
 std::vector<Question> g_questions;
-std::unordered_map<int, const Question*> g_questionById;
+std::unordered_map<int, size_t> g_questionById;
 
 /**
  * @brief 从 CSV 文件加载题库（实现）
@@ -98,10 +98,10 @@ bool loadQuestionsFromFile(const std::string& filename) {
         g_questions.push_back(q);
     }
 
-    // 建立题号 -> Question* 的索引（O(N)）
-    // 指针指向 g_questions 中的元素，无需额外拷贝
-    for (const auto& q : g_questions) {
-        g_questionById[q.id] = &q;
+    // 建立题号 -> 索引的映射（O(N)）
+    // 使用索引而非指针，避免 vector 扩容导致指针失效
+    for (size_t i = 0; i < g_questions.size(); ++i) {
+        g_questionById[g_questions[i].id] = i;
     }
 
     // 输出加载结果

@@ -93,12 +93,15 @@ std::unordered_map<std::string, KnowledgeStat> buildKnowledgeStats() {
 
     // 第一步：遍历所有记录，累加各知识点的题数和答对数
     for (const auto& r : g_records) {
-        // 通过题目 ID 查找题目对象（O(1) 哈希查找）
+        // 通过题目 ID 查找题目索引（O(1) 哈希查找）
         auto itQ = g_questionById.find(r.questionId);
         if (itQ == g_questionById.end()) continue; // 题目不存在则跳过
 
+        size_t qIdx = itQ->second;
+        if (qIdx >= g_questions.size()) continue; // 索引异常则跳过
+
         // 获取题目所属的知识点
-        const std::string& kd = itQ->second->knowledge;
+        const std::string& kd = g_questions[qIdx].knowledge;
 
         // 累加该知识点的统计数据
         ks[kd].total++;                      // 总题数 +1
@@ -168,12 +171,15 @@ void showStatistics() {
 
     // 遍历所有记录，按知识点累加统计数据
     for (const auto& r : g_records) {
-        // 通过题目 ID 查找题目对象
+        // 通过题目 ID 查找题目索引
         auto itQ = g_questionById.find(r.questionId);
         if (itQ == g_questionById.end()) continue; // 题目不存在则跳过
 
+        size_t qIdx = itQ->second;
+        if (qIdx >= g_questions.size()) continue; // 索引异常则跳过
+
         // 获取题目所属的知识点
-        const std::string& kd = itQ->second->knowledge;
+        const std::string& kd = g_questions[qIdx].knowledge;
 
         // 累加该知识点的统计数据
         ks[kd].total++;                    // 总题数 +1
