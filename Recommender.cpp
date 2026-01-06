@@ -9,7 +9,8 @@
 #include "Record.h"
 #include "Utils.h"
 #include <iostream>
-#include <queue>
+#include <vector>
+#include <algorithm>
 #include <ctime>
 #include <cmath>
 
@@ -154,6 +155,89 @@ double computeRecommendScore(const Question& q, const QuestionStat& st, long lon
 }
 
 /**
+ * @brief 手写堆辅助函数：上浮调整（保持堆顶最大）
+ *
+ * 用于插入元素时，将新元素从底部向上调整到正确位置，维护大根堆性质。
+ *
+ * **【算法原理】**
+ * 1. 从新插入的子节点开始（位于数组末尾）
+ * 2. 计算父节点索引：parentIdx = (childIdx - 1) / 2
+ * 3. 若父节点值 < 子节点值，则交换两者（大根堆要求父节点更大）
+ * 4. 更新 childIdx = parentIdx，继续向上检查
+ * 5. 重复直到满足堆性质或到达根节点
+ *
+ * **【时间复杂度】** O(log N)，最多上浮 log N 层
+ * **【空间复杂度】** O(1)，仅使用局部变量
+ *
+ * @param heap 存储堆元素的 vector 容器（引用传递，原地修改）
+ * @param childIdx 待调整元素的索引（通常是新插入的元素）
+ *
+ * @note 使用 RecommendItem 的 operator< 进行比较（score 小的 < 返回 true）
+ * @note 大根堆定义：父节点 >= 子节点，heap[parent] >= heap[child]
+ */
+void siftUp(std::vector<RecommendItem>& heap, int childIdx) {
+    while (childIdx > 0) {
+        int parentIdx = (childIdx - 1) / 2;
+        // 若父节点 < 子节点（operator< 返回 true），说明违反大根堆性质，需要交换
+        if (heap[parentIdx] < heap[childIdx]) {
+            std::swap(heap[parentIdx], heap[childIdx]);
+            childIdx = parentIdx; // 继续向上检查
+        } else {
+            break; // 满足堆性质，停止调整
+        }
+    }
+}
+
+/**
+ * @brief 手写堆辅助函数：下沉调整（保持堆顶最大）
+ *
+ * 用于删除堆顶时，将新的根节点向下调整到正确位置，维护大根堆性质。
+ *
+ * **【算法原理】**
+ * 1. 从根节点开始（parentIdx = 0）
+ * 2. 计算左右子节点索引：
+ *    - left = 2 × parentIdx + 1
+ *    - right = 2 × parentIdx + 2
+ * 3. 找出父、左、右三者中的最大值
+ * 4. 若最大值不是父节点，则交换父节点与最大值子节点
+ * 5. 更新 parentIdx 为被交换的子节点索引，继续向下检查
+ * 6. 重复直到满足堆性质或到达叶子节点
+ *
+ * **【时间复杂度】** O(log N)，最多下沉 log N 层
+ * **【空间复杂度】** O(1)，仅使用局部变量
+ *
+ * @param heap 存储堆元素的 vector 容器（引用传递，原地修改）
+ * @param parentIdx 待调整元素的索引（通常是根节点 0）
+ *
+ * @note 使用 RecommendItem 的 operator< 进行比较
+ * @note 边界检查：left/right 必须 < size 才存在
+ */
+void siftDown(std::vector<RecommendItem>& heap, int parentIdx) {
+    int size = heap.size();
+    while (true) {
+        int left = 2 * parentIdx + 1;
+        int right = 2 * parentIdx + 2;
+        int largest = parentIdx;
+
+        // 找出父、左、右三者中的最大值
+        if (left < size && heap[largest] < heap[left]) {
+            largest = left;
+        }
+        if (right < size && heap[largest] < heap[right]) {
+            largest = right;
+        }
+
+        // 若最大值不是当前父节点，则交换并继续下沉
+        if (largest != parentIdx) {
+            std::swap(heap[parentIdx], heap[largest]);
+            parentIdx = largest; // 继续向下检查
+        } else {
+            break; // 满足堆性质，停止调整
+        }
+    }
+}
+
+/**
  * @brief AI 智能推荐模式主函数（实现）
  *
  * 基于用户历史做题数据，运用多维度评分算法智能推荐最适合练习的 Top-K 题目。
@@ -181,19 +265,24 @@ double computeRecommendScore(const Question& q, const QuestionStat& st, long lon
  *   3. 调用 computeRecommendScore() 计算推荐分数（O(1)）
  *   4. 将 {题目ID, 分数} 封装成 RecommendItem 插入优先队列（O(log N)）
  *
- * **Step 5：使用优先队列（大顶堆）维护 Top-K**
- * - 为什么用 priority_queue：
- *   * 自动维护堆序性质，堆顶始终是分数最高的题目
- *   * 插入操作 O(log N)，取堆顶 O(1)
- *   * 无需手动排序，空间效率高
- *   * STL 实现高效稳定
- * - 为什么是大顶堆：
+ * **Step 5：使用手写堆维护 Top-K**
+ * - 数据结构：std::vector<RecommendItem> 模拟完全二叉树
+ * - 堆性质：大根堆，父节点分数 >= 子节点分数
+ * - 核心操作：
+ *   * siftUp()：插入元素时上浮调整，时间复杂度 O(log N)
+ *   * siftDown()：删除堆顶时下沉调整，时间复杂度 O(log N)
+ * - 为什么是大根堆：
  *   * 需要推荐分数最高的 K 道题
- *   * 大顶堆堆顶即为最大值，符合需求
+ *   * 大根堆堆顶即为最大值，符合需求
  *   * 通过重载 operator< 实现（score 小的返回 true）
  *
  * **Step 6：提取 Top-K 题目**
- * - 从优先队列中依次取出前 K 个题目（O(K log N)）
+ * - 从手写堆中依次取出前 K 个题目（O(K log N)）
+ * - 删除堆顶操作：
+ *   1. 取出堆顶元素（最大值）
+ *   2. 将堆尾元素移到堆顶
+ *   3. 删除堆尾
+ *   4. 对新堆顶执行 siftDown() 下沉调整
  * - 若题库总数 < K，则推荐全部题目
  * - 存储到 selected 向量中，保持推荐顺序（分数从高到低）
  *
@@ -219,18 +308,18 @@ double computeRecommendScore(const Question& q, const QuestionStat& st, long lon
  * 2. 遍历题目：O(N)
  * 3. 查找统计：O(log N) × N = O(N log N)（map 查找）
  * 4. 计算评分：O(1) × N = O(N)
- * 5. 插入堆：O(log N) × N = O(N log N)（优先队列插入）
- * 6. 取出 Top-K：O(log N) × K = O(K log N)
+ * 5. 插入堆：O(log N) × N = O(N log N)（手写 siftUp 调整）
+ * 6. 取出 Top-K：O(log N) × K = O(K log N)（手写 siftDown 调整）
  * 7. 做题过程：O(K)（用户交互，与算法复杂度无关）
  *
  * **总体时间复杂度：O(N log N)**
- * - 主要瓶颈在于 map 查找和优先队列插入
+ * - 主要瓶颈在于 map 查找和堆插入调整
  * - 对于小规模题库（N < 10000），性能表现优秀
  * - 可进一步优化为 O(N log K)（使用小顶堆维护 Top-K）
  *
  * **【空间复杂度分析】**
  *
- * 1. 优先队列：O(N)，存储所有题目的推荐项
+ * 1. 手写堆（vector）：O(N)，存储所有题目的推荐项
  * 2. selected 向量：O(K)
  * 3. 统计信息 map：O(N)
  * 4. 局部变量：O(1)
@@ -288,13 +377,23 @@ void aiRecommendMode() {
     // ============================================================
     // Step 4 & 5：评分 + 堆维护 - 核心算法
     // ============================================================
-    // 使用优先队列（大顶堆）自动维护分数最高的题目
-    // 优点：
-    // 1. 自动排序，无需手动 sort()
-    // 2. 插入效率 O(log N)，优于排序的 O(N log N)
-    // 3. 取堆顶 O(1)，快速获取最高分
-    // 4. STL 实现稳定高效
-    std::priority_queue<RecommendItem> pq;
+    // 【原始实现 - 使用 STL priority_queue（已注释保留）】
+    // std::priority_queue<RecommendItem> pq;  // STL 大顶堆，自动维护堆性质
+    // for (const auto& q : g_questions) {
+    //     QuestionStat st;
+    //     auto it = g_questionStats.find(q.id);
+    //     if (it != g_questionStats.end()) {
+    //         st = it->second;
+    //     }
+    //     double s = computeRecommendScore(q, st, now);
+    //     pq.push({q.id, s});  // STL 自动调用堆插入算法
+    // }
+    // ============================================================
+    // 【当前实现 - 手写堆算法】
+    // 使用 vector + 手写 siftUp/siftDown 维护分数最高的题目
+    // 1. 数组模拟完全二叉树
+    // 2. 手动实现堆的上浮和下沉操作
+    std::vector<RecommendItem> myHeap;
 
     // 遍历所有题目，计算推荐分数并插入堆
     // 时间复杂度：O(N log N)
@@ -311,8 +410,11 @@ void aiRecommendMode() {
         // 计算推荐评分（O(1)）
         double s = computeRecommendScore(q, st, now);
 
-        // 插入优先队列（O(log N)）
-        pq.push({q.id, s});
+        // 【手写堆插入操作】（O(log N)）
+        // 1. 先放到数组末尾
+        myHeap.push_back({q.id, s});
+        // 2. 执行上浮操作，维持大根堆性质
+        siftUp(myHeap, myHeap.size() - 1);
     }
 
     // ============================================================
@@ -333,11 +435,27 @@ void aiRecommendMode() {
     std::vector<int> selected;
     selected.reserve(K); // 预分配空间，避免动态扩容
 
+    // 【原始实现 - 使用 STL priority_queue（已注释保留）】
+    // while (!pq.empty() && (int)selected.size() < K) {
+    //     selected.push_back(pq.top().questionId);  // STL 获取堆顶
+    //     pq.pop();                                 // STL 自动调用堆删除算法
+    // }
+    // ============================================================
+    // 【当前实现 - 手写堆删除操作】
     // 从堆中依次取出前 K 个最高分题目
     // 时间复杂度：O(K log N)
-    while (!pq.empty() && (int)selected.size() < K) {
-        selected.push_back(pq.top().questionId); // 取堆顶元素
-        pq.pop();                                 // 弹出堆顶
+    while (!myHeap.empty() && (int)selected.size() < K) {
+        // 【手写堆删除堆顶操作】
+        selected.push_back(myHeap[0].questionId); // 堆顶即最大值
+
+        // 1. 将堆顶与最后一个元素交换
+        std::swap(myHeap[0], myHeap.back());
+        // 2. 删除最后一个元素（原来的堆顶）
+        myHeap.pop_back();
+        // 3. 如果堆不为空，对新的堆顶执行下沉操作
+        if (!myHeap.empty()) {
+            siftDown(myHeap, 0);
+        }
     }
 
     // ============================================================

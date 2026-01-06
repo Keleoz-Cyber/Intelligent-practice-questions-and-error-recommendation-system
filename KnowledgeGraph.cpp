@@ -400,10 +400,24 @@ void recommendReviewPath() {
         items.push_back(item);
     }
 
-    // 按正确率从低到高排序（O(V log V)）
-    std::sort(items.begin(), items.end());
+    // // 按正确率从低到高排序（O(V log V)）
+    // std::sort(items.begin(), items.end());
 
-    // 显示知识点掌握情况列表
+    // --- 优化版冒泡排序 ---
+    for (size_t i = 0; i < items.size() - 1; ++i) {
+        bool swapped = false; // 优化：标志位，记录这一轮是否发生过交换
+        for (size_t j = 0; j < items.size() - 1 - i; ++j) {
+            // 如果后一个比前一个“小”（即正确率更低），则交换
+            if (items[j + 1] < items[j]) {
+                std::swap(items[j], items[j + 1]);
+                swapped = true;
+            }
+        }
+        // 如果这一轮一次交换都没发生，说明已经排好序了，直接跳出
+        if (!swapped) break;
+    }
+
+        // 显示知识点掌握情况列表
     for (size_t i = 0; i < items.size(); ++i) {
         std::cout << (i + 1) << ". [" << items[i].name << "]  "
              << "题数: " << items[i].total
